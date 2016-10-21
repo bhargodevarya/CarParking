@@ -1,4 +1,4 @@
-package com.bhago.model;
+package com.bhargo.model;
 
 import java.util.List;
 
@@ -32,7 +32,7 @@ public class CarPark {
     public boolean isSpaceAvailable () {
         boolean[] available = new boolean[1];
         getLevels().stream().forEach(n -> {
-            n.getSlotList().forEach(m -> {
+            n.getSlotList().stream().filter(g -> g.isAvailable()).forEach(m -> {
                 if(m.isAvailable()) {
                     available[0] = true;
                 }

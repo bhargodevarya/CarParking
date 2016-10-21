@@ -1,6 +1,6 @@
-package com.bhago.service;
+package com.bhargo.service;
 
-import com.bhago.model.Vehicle;
+import com.bhargo.model.Vehicle;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.concurrent.ExecutorService;

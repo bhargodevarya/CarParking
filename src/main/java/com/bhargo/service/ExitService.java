@@ -1,6 +1,6 @@
-package com.bhago.service;
+package com.bhargo.service;
 
-import com.bhago.model.Vehicle;
+import com.bhargo.model.Vehicle;
 
 /**
  * Created by bhargo on 20/10/16.

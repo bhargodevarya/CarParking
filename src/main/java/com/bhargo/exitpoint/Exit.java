@@ -1,4 +1,4 @@
-package com.bhago.exitpoint;
+package com.bhargo.exitpoint;
 
 /**
  * Created by bhargo on 20/10/16.

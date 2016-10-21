@@ -1,4 +1,4 @@
-package com.bhago.model;
+package com.bhargo.model;
 
 /**
  * Created by hadoop on 20/10/16.

@@ -1,4 +1,4 @@
-package com.bhago.entrypoint;
+package com.bhargo.entrypoint;
 
 
 /**

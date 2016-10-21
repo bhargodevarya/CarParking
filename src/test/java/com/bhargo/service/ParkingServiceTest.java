@@ -1,7 +1,6 @@
 package com.bhargo.service;
 
-import com.bhago.model.*;
-import com.bhago.service.ParkingService;
+import com.bhargo.model.*;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;

@@ -1,4 +1,4 @@
-package com.bhago.model;
+package com.bhargo.model;
 
 import java.util.List;
 
