@@ -1,8 +1,9 @@
 package com.bhargo;
 
+import com.bhargo.entrypoint.Entry;
+import com.bhargo.exitpoint.Exit;
 import com.bhargo.model.*;
-import com.bhargo.service.ParkingService;
-import com.bhargo.service.ParkingServiceImpl;
+import com.bhargo.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -29,13 +30,85 @@ public class Main implements CommandLineRunner{
     private ParkingService parkingService;
 
     @Autowired
-    private CarPark carPark;
+    private QueuingService<EntryRequest> entryRequestQueuingService;
+
+    @Autowired
+    private QueuingService<ExitRequest> exitRequestQueuingService;
+
+    @Bean
+    public BlockingQueue<EntryRequest> entryRequestBlockingQueue () {
+        return new LinkedBlockingQueue<EntryRequest>();
+    }
+
+    @Bean
+    public BlockingQueue<ExitRequest> exitRequestBlockingQueue () {
+        return new LinkedBlockingQueue<ExitRequest>();
+    }
+
+    @Bean
+    public QueuingService<EntryRequest> entryRequestQueuingService() {
+        return new EntryQueuingServiceImpl(entryRequestBlockingQueue());
+    }
+
+    @Bean
+    public QueuingService<ExitRequest> exitRequestQueuingService() {
+        return new ExitQueuingServiceImpl(exitRequestBlockingQueue());
+    }
+
+    @Bean
+    public EntryService entryService () {
+        return  new EntryServiceImpl(entryRequestBlockingQueue(),parkingService());
+    }
 
     @Override
     public void run(String... args) throws Exception {
-        //carPark.showStatus();
-        //System.out.println(carPark);
-        //parkingService.park(new Vehicle(VEHICLE_TYPE.CAR));
+        Runnable runnable = () -> {
+            ExecutorService entryGate1 = Executors.newSingleThreadExecutor();
+            int[] index = new int[1];
+            for (int i =0;i<=9;i++) {
+                index[0] = i;
+                entryGate1.submit(() -> {
+                    entryRequestQueuingService.Queue(new EntryRequest(Thread.currentThread()
+                            .getName() + " > "+Integer.toString(index[0])));
+                });
+            }
+        };
+        //start 2 threads, each thread to emulate a entry gate
+        new Thread(() -> {
+            ExecutorService entryGate1 = Executors.newSingleThreadExecutor();
+            int[] index = new int[1];
+            for (int i =0;i<=9;i++) {
+                index[0] = i;
+                entryGate1.submit(() -> {
+                    //System.out.println(index[0]);
+                    entryRequestQueuingService.Queue(new EntryRequest(Thread.currentThread()
+                            .getName() +new Double(Math.random())));
+                });
+            }
+        }).start();
+        new Thread(() -> {
+            ExecutorService entryGate1 = Executors.newSingleThreadExecutor();
+            int[] index = new int[1];
+            for (int i =0;i<=9;i++) {
+                index[0] = i;
+                entryGate1.submit(() -> {
+                    entryRequestQueuingService.Queue(new EntryRequest(Thread.currentThread()
+                            .getName() + new Double(Math.random())));
+                });
+            }
+        }).start();
+        Thread.sleep(1000);
+
+        EntryServiceImpl entryService = (EntryServiceImpl) entryService();
+        //entryService.pollQueue();
+
+        //entryRequestBlockingQueue().forEach(System.out::println);
+
+    }
+
+
+    private void oldModel() throws Exception{
+
 
         List<Vehicle> entryVehicles = Arrays.asList(new Vehicle[]{new Vehicle(VEHICLE_TYPE.CAR,"1"),new Vehicle(VEHICLE_TYPE.CAR, "2"),
                 new Vehicle(VEHICLE_TYPE.CAR, "3"),new Vehicle(VEHICLE_TYPE.CAR, "4"),
@@ -52,25 +125,34 @@ public class Main implements CommandLineRunner{
                 new Vehicle(VEHICLE_TYPE.CAR, "5")});
 
         int[] exitIndex = new int[1];
+        boolean[] status = new boolean[1];
 
         new Thread(() -> {
             ExecutorService executorService = Executors.newFixedThreadPool(12);
-            Future<Boolean> status = null;
+            //Future<Boolean> status = null;
             for (int i =0;i<=12;i++) {
                 entryIndex[0] = i;
-                status = executorService.submit(new Callable<Boolean>() {
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        System.out.println("Thread " + Thread.currentThread().getName() + " " + entryIndex[0]);
+                        status[0] = parkingService.park(entryVehicles.get(entryIndex[0]));
+                        System.out.println(entryVehicles.get(entryIndex[0]) + " has been parked " + status[0] + " at " + new Date());
+                    }
+                }).start();
+
+                /*status = executorService.submit(new Callable<Boolean>() {
                     @Override
                     public Boolean call() throws Exception {
                         //System.out.println(Thread.currentThread().getName() + " is parking " +  entryIndex[0]);
                         Thread.sleep(1000);
                         return parkingService.park(entryVehicles.get(entryIndex[0]));
                     }
-                });
+                });*/
                 try {
-                    System.out.println(entryVehicles.get(entryIndex[0]) + " has been parked " + status.get() + " at " + new Date());
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                } catch (ExecutionException e) {
+                    //System.out.println(entryVehicles.get(entryIndex[0]) + " has been parked " + status[0] + " at " + new Date());
+                    //Thread.sleep(1000);
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
@@ -98,14 +180,23 @@ public class Main implements CommandLineRunner{
 
         //Thread.sleep(5000);
         //carPark.showStatus();
+
+
     }
 
     @Bean
     public ParkingService parkingService() {
-        return new ParkingServiceImpl(carPark());
+
+        List<Level> levels = new ArrayList<>(1);
+        List<Slot> slots = new ArrayList<>(10);
+        for (int i =0;i<10;i++) {
+            slots.add(new Slot(true, SLOT_TYPE.CAR));
+        }
+        levels.add(new Level(slots));
+        return new ParkingServiceImpl(new CarPark(false, levels, 10));
     }
 
-    @Bean
+    /*@Bean
     public CarPark carPark() {
         List<Level> levels = new ArrayList<>(1);
         levels.add(level());
@@ -119,5 +210,5 @@ public class Main implements CommandLineRunner{
             slots.add(new Slot(true, SLOT_TYPE.CAR));
         }
         return new Level(slots);
-    }
+    }*/
 }
