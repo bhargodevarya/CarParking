@@ -1,6 +1,7 @@
 package com.bhargo;
 
 import com.bhargo.entrypoint.Entry;
+import com.bhargo.entrypoint.EntryBarricade;
 import com.bhargo.exitpoint.Exit;
 import com.bhargo.model.*;
 import com.bhargo.service.*;
@@ -22,10 +23,6 @@ import java.util.concurrent.*;
 @SpringBootApplication
 public class Main implements CommandLineRunner{
 
-    public static void main(String[] args) {
-        SpringApplication.run(Main.class, args);
-    }
-
     @Autowired
     private ParkingService parkingService;
 
@@ -34,6 +31,10 @@ public class Main implements CommandLineRunner{
 
     @Autowired
     private QueuingService<ExitRequest> exitRequestQueuingService;
+
+    public static void main(String[] args) {
+        SpringApplication.run(Main.class, args);
+    }
 
     @Bean
     public BlockingQueue<EntryRequest> entryRequestBlockingQueue () {
@@ -60,49 +61,52 @@ public class Main implements CommandLineRunner{
         return  new EntryServiceImpl(entryRequestBlockingQueue(),parkingService());
     }
 
+    @Bean
+    public List<EntryBarricade> entryBarricades() {
+        List<EntryBarricade> entryBarricades = new ArrayList<>();
+        EntryBarricade entryBarricade;
+        Runnable runnable;
+
+        for (int i =0;i<=3;i++) {
+            String barricadeId = "Barricade-"+i;
+            runnable = new Runnable() {
+                @Override
+                public void run() {
+                    ExecutorService entryGate1 = Executors.newSingleThreadExecutor();
+                    for (int j =0;j<=9;j++) {
+                        entryGate1.submit(() -> {
+                            EntryRequest er = new EntryRequest(barricadeId, Thread.currentThread().getName()
+                                    + " " + new Double(Math.random()));
+                            entryRequestQueuingService.Queue(er);
+                        });
+                    }
+                }
+            };
+            entryBarricade = new EntryBarricade("Barricade-"+i, runnable);
+            entryBarricades.add(entryBarricade);
+        }
+        return entryBarricades;
+    }
+
+    @Bean
+    public EntryBarricadeService entryBarricadeService() {
+        return new EntryBarricadeService(entryBarricades(), (EntryServiceImpl)entryService());
+    }
+
+    @Bean
+    public ParkingService parkingService() {
+
+        List<Level> levels = new ArrayList<>(1);
+        List<Slot> slots = new ArrayList<>(10);
+        for (int i =0;i<10;i++) {
+            slots.add(new Slot(true, SLOT_TYPE.CAR));
+        }
+        levels.add(new Level(slots));
+        return new ParkingServiceImpl(new CarPark(false, levels, 10));
+    }
+
     @Override
     public void run(String... args) throws Exception {
-        Runnable runnable = () -> {
-            ExecutorService entryGate1 = Executors.newSingleThreadExecutor();
-            int[] index = new int[1];
-            for (int i =0;i<=9;i++) {
-                index[0] = i;
-                entryGate1.submit(() -> {
-                    entryRequestQueuingService.Queue(new EntryRequest(Thread.currentThread()
-                            .getName() + " > "+Integer.toString(index[0])));
-                });
-            }
-        };
-        //start 2 threads, each thread to emulate a entry gate
-        new Thread(() -> {
-            ExecutorService entryGate1 = Executors.newSingleThreadExecutor();
-            int[] index = new int[1];
-            for (int i =0;i<=9;i++) {
-                index[0] = i;
-                entryGate1.submit(() -> {
-                    //System.out.println(index[0]);
-                    entryRequestQueuingService.Queue(new EntryRequest(Thread.currentThread()
-                            .getName() +new Double(Math.random())));
-                });
-            }
-        }).start();
-        new Thread(() -> {
-            ExecutorService entryGate1 = Executors.newSingleThreadExecutor();
-            int[] index = new int[1];
-            for (int i =0;i<=9;i++) {
-                index[0] = i;
-                entryGate1.submit(() -> {
-                    entryRequestQueuingService.Queue(new EntryRequest(Thread.currentThread()
-                            .getName() + new Double(Math.random())));
-                });
-            }
-        }).start();
-        Thread.sleep(1000);
-
-        EntryServiceImpl entryService = (EntryServiceImpl) entryService();
-        //entryService.pollQueue();
-
-        //entryRequestBlockingQueue().forEach(System.out::println);
 
     }
 
@@ -180,20 +184,6 @@ public class Main implements CommandLineRunner{
 
         //Thread.sleep(5000);
         //carPark.showStatus();
-
-
-    }
-
-    @Bean
-    public ParkingService parkingService() {
-
-        List<Level> levels = new ArrayList<>(1);
-        List<Slot> slots = new ArrayList<>(10);
-        for (int i =0;i<10;i++) {
-            slots.add(new Slot(true, SLOT_TYPE.CAR));
-        }
-        levels.add(new Level(slots));
-        return new ParkingServiceImpl(new CarPark(false, levels, 10));
     }
 
     /*@Bean

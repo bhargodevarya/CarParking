@@ -16,7 +16,7 @@ public class EntryQueuingServiceImpl implements QueuingService<EntryRequest> {
     }
 
     @Override
-    public boolean Queue(EntryRequest entryRequest) {
+    public boolean Queue(final EntryRequest entryRequest) {
         if(validate(entryRequest)) {
             try {
                 parkingRequestBlockingQueue.put(entryRequest);
